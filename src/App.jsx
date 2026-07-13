@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Check, Clipboard, Mail, MessageCircle, Minus, Plus, Search, ShoppingBag, X } from 'lucide-react';
 import products from './data/products.json';
 
