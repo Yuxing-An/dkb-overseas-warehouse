@@ -4,7 +4,13 @@ A professional customer-facing product catalog for DKB Flower USA warehouse read
 
 ## Project Introduction
 
-This project presents ready-to-ship wedding and event floral products including flower balls, wedding centerpieces, flower arches, flower walls, table runners, aisle decorations, floral trees, and other decorations.
+This project presents ready-to-ship wedding and event floral products including flower balls, wedding runners, flower arches, flower walls, aisle decorations, floral trees, and other decorations.
+
+Sales entry pages:
+
+- `/` and `/andy`: Andy
+- `/daisy`: Daisy Han
+- `/anna`: Anna Wu
 
 Built with React + Vite so the catalog can later support inventory status, quotation requests, customer inquiry workflows, and internal quotation system connections.
 
