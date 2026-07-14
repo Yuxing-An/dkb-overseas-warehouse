@@ -1,13 +1,33 @@
-import React, { useMemo, useState } from 'react';
-import { Check, Clipboard, Mail, MessageCircle, Minus, Plus, Search, ShoppingBag, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Check, Clipboard, MessageCircle, Minus, Plus, Search, ShoppingBag, X } from 'lucide-react';
 import products from './data/products.json';
 
+const salesProfiles = {
+  andy: {
+    name: 'Andy',
+    shortName: 'Andy',
+    phone: '+86 19937076186',
+    whatsapp: 'https://wa.me/8619937076186'
+  },
+  daisy: {
+    name: 'Daisy Han',
+    shortName: 'Daisy',
+    phone: '+86 18037799375',
+    whatsapp: 'https://wa.me/8618037799375'
+  },
+  anna: {
+    name: 'Anna Wu',
+    shortName: 'Anna',
+    phone: '+86 173 9896 1930',
+    whatsapp: 'https://wa.me/8617398961930'
+  }
+};
+
 const categoryOrder = [
-  'Wedding Centerpieces',
+  'Wedding Runner',
   'Flower Balls',
   'Flower Arches',
   'Flower Walls',
-  'Table Runners',
   'Aisle Decorations',
   'Floral Trees',
   'Other Decorations'
@@ -26,8 +46,13 @@ const colorOrder = [
 ];
 
 const categoryAliases = {
-  'Table Runners': 'Wedding Centerpieces'
+  'Table Runners': 'Wedding Runner'
 };
+
+function getSalesProfile() {
+  const slug = window.location.pathname.split('/').filter(Boolean)[0] || 'andy';
+  return salesProfiles[slug] || salesProfiles.andy;
+}
 
 function displayCategory(product) {
   return categoryAliases[product.category] || product.category;
@@ -58,18 +83,38 @@ function buildSearchText(product) {
 }
 
 function App() {
+  const salesProfile = useMemo(() => getSalesProfile(), []);
   const [mode, setMode] = useState('type');
   const [activeFilter, setActiveFilter] = useState('All');
   const [query, setQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [copiedCode, setCopiedCode] = useState('');
+  const [copyStatus, setCopyStatus] = useState('');
+  const [manualCopyText, setManualCopyText] = useState('');
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquiryItems, setInquiryItems] = useState([]);
+
+  useEffect(() => {
+    document.title = `DKB Flower USA Warehouse Ready Stock | ${salesProfile.name}`;
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute(
+        'content',
+        'Browse DKB Flower USA warehouse ready stock artificial flowers, wedding runners, flower arches, flower walls and event decorations.'
+      );
+    }
+  }, [salesProfile.name]);
 
   const normalizedProducts = useMemo(
     () => products.map((product) => ({ ...product, displayCategory: displayCategory(product) })),
     []
   );
+
+  const productByCode = useMemo(() => {
+    const map = new Map();
+    normalizedProducts.forEach((product) => map.set(product.code, product));
+    return map;
+  }, [normalizedProducts]);
 
   const heroProducts = useMemo(() => {
     const wanted = ['FB080', 'TR187', 'ARCH466', 'HQA023'];
@@ -108,12 +153,20 @@ function App() {
   }
 
   async function copyCode(code) {
-    await navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    window.setTimeout(() => setCopiedCode(''), 1600);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      window.setTimeout(() => setCopiedCode(''), 1600);
+    } catch {
+      setManualCopyText(code);
+      setCopyStatus('Copy is not available in this browser. Please copy the text below.');
+      setInquiryOpen(true);
+    }
   }
 
   function addInquiry(product) {
+    setManualCopyText('');
+    setCopyStatus('');
     setInquiryItems((items) => {
       const existing = items.find((item) => item.code === product.code);
       if (existing) {
@@ -136,28 +189,48 @@ function App() {
     setInquiryItems((items) => items.filter((item) => item.code !== code));
   }
 
-  const inquiryMailBody = encodeURIComponent([
-    'Hello DKB Flower,',
-    '',
-    'I am interested in the following products:',
-    '',
-    ...inquiryItems.flatMap((item) => [item.code, `Quantity: ${item.quantity}`, '']),
-    'Please provide quotation and availability.',
-    '',
-    'Thank you.'
-  ].join('\n'));
+  function selectedProductsText() {
+    const lines = inquiryItems.map((item, index) => {
+      const product = productByCode.get(item.code);
+      const category = product?.displayCategory || 'Other Decorations';
+      const size = product?.size || '-';
+      const price = product ? priceText(product) : '-';
+      return `${index + 1}. ${item.code} - ${category} - Size: ${size} - Qty: ${item.quantity} - Price: ${price}`;
+    });
 
-  const inquiryHref = `mailto:info@dkbflower.com?subject=${encodeURIComponent('USA Warehouse Product Inquiry')}&body=${inquiryMailBody}`;
+    return [
+      'DKB Flower USA Warehouse Selected Products',
+      '',
+      'Product List:',
+      ...lines,
+      '',
+      'Contact Sales:',
+      salesProfile.name,
+      `Tel / WhatsApp: ${salesProfile.phone}`
+    ].join('\n');
+  }
+
+  async function copySelectedProducts() {
+    const text = selectedProductsText();
+    try {
+      await navigator.clipboard.writeText(text);
+      setManualCopyText('');
+      setCopyStatus('Copied selected products.');
+    } catch {
+      setManualCopyText(text);
+      setCopyStatus('Copy is not available in this browser. Please copy the text below.');
+    }
+  }
 
   return (
     <>
-      <div className="notice">USA Warehouse Ready Stock · Fast Delivery · Wedding & Event Solutions</div>
+      <div className="notice">USA Warehouse Ready Stock - Fast Delivery - Free Shipping</div>
       <header className="site-nav">
         <a className="brand" href="#top">DKB FLOWER</a>
         <nav>
           <a href="#products">Products</a>
           <a href="#order">How To Order</a>
-          <a href="#shipping">Shipping</a>
+          <a href="#shipping">Free Shipping</a>
           <a href="#contact">Contact</a>
         </nav>
         <button className="inquiry-pill" type="button" onClick={() => setInquiryOpen(true)}>
@@ -169,24 +242,24 @@ function App() {
       <main id="top">
         <section className="hero">
           <div className="hero-copy">
-            <p className="eyebrow">DKB Flower · USA Warehouse Catalog</p>
+            <p className="eyebrow">DKB Flower - USA Warehouse Catalog</p>
             <h1>USA Warehouse Ready Stock</h1>
             <p className="hero-subtitle">Ready-to-ship artificial floral decorations for weddings, events and venues.</p>
             <div className="value-points">
               <span><Check size={16} /> USA Warehouse Stock</span>
               <span><Check size={16} /> Fast Delivery</span>
-              <span><Check size={16} /> Wedding & Event Solutions</span>
+              <span><Check size={16} /> Free Shipping</span>
             </div>
             <div className="hero-actions">
               <a className="button dark" href="#products">Browse Products</a>
-              <a className="button light" href="https://wa.me/8619937076186">WhatsApp Us</a>
+              <a className="button light" href={salesProfile.whatsapp}>WhatsApp {salesProfile.shortName}</a>
             </div>
           </div>
           <div className="hero-gallery" aria-label="Featured products">
             {heroProducts.map((product) => (
               <button className="hero-tile" key={product.code} onClick={() => setSelectedProduct(product)} type="button">
                 <img src={product.image} alt={product.name} />
-                <span>{product.name}</span>
+                <span>{product.name === 'Table Runner' ? 'Wedding Runner' : product.name}</span>
               </button>
             ))}
           </div>
@@ -195,7 +268,7 @@ function App() {
         <section className="stats" aria-label="Catalog highlights">
           <div><strong>{normalizedProducts.length}</strong><span>Products</span></div>
           <div><strong>USA</strong><span>Warehouse</span></div>
-          <div><strong>Fast</strong><span>Delivery Options</span></div>
+          <div><strong>Free</strong><span>Shipping</span></div>
           <div><strong>Event</strong><span>Solutions</span></div>
         </section>
 
@@ -248,6 +321,7 @@ function App() {
                           <span>{product.displayCategory}</span>
                           <span>{product.color}</span>
                           <span>USA Stock</span>
+                          <span>Free Shipping</span>
                         </div>
                         <div className="card-actions">
                           <button type="button" onClick={() => copyCode(product.code)}>
@@ -276,32 +350,36 @@ function App() {
           <div className="steps">
             <article><span>Step 1</span><p>Choose products and product codes</p></article>
             <article><span>Step 2</span><p>Send us product codes and quantities</p></article>
-            <article><span>Step 3</span><p>We confirm availability and shipping</p></article>
+            <article><span>Step 3</span><p>We confirm availability and free shipping</p></article>
             <article><span>Step 4</span><p>Production / Delivery arrangement</p></article>
           </div>
         </section>
 
         <section className="shipping" id="shipping">
-          <p className="eyebrow">Shipping Information</p>
+          <p className="eyebrow">Free Shipping</p>
           <h2>USA Warehouse Ready Stock</h2>
-          <p>Ready stock products are available for fast delivery. Please contact us for current inventory and shipping options.</p>
+          <p>Ready stock products include free shipping. Please contact us for current inventory and ordering details.</p>
         </section>
 
         <section className="cta" id="contact">
           <div>
             <p className="eyebrow">Contact Sales</p>
-            <h2>Send us the product codes to order.</h2>
+            <h2>{salesProfile.name}</h2>
             <p>Please send product codes, quantities, and your event date. We will confirm availability and next steps.</p>
-            <p className="contact-line">Tel / WhatsApp: +86 19937076186 · Andy</p>
+            <p className="contact-line">Tel / WhatsApp: {salesProfile.phone}</p>
           </div>
           <div className="cta-actions">
-            <a className="button dark" href="mailto:info@dkbflower.com"><Mail size={18} /> Email Sales</a>
-            <a className="button light" href="https://wa.me/8619937076186"><MessageCircle size={18} /> WhatsApp Us</a>
+            <a className="button light" href={salesProfile.whatsapp}><MessageCircle size={18} /> WhatsApp {salesProfile.name}</a>
           </div>
         </section>
       </main>
 
-      <footer>DKB FLOWER · USA Warehouse Ready Stock · Wedding Artificial Flowers</footer>
+      <a className="floating-whatsapp" href={salesProfile.whatsapp}>
+        <MessageCircle size={18} />
+        WhatsApp {salesProfile.shortName}
+      </a>
+
+      <footer>DKB FLOWER - USA Warehouse Ready Stock - Wedding Artificial Flowers</footer>
 
       {selectedProduct && (
         <div className="modal" role="dialog" aria-modal="true" onClick={() => setSelectedProduct(null)}>
@@ -317,6 +395,7 @@ function App() {
                 <span>{selectedProduct.displayCategory}</span>
                 <span>{selectedProduct.color}</span>
                 <span>USA Stock</span>
+                <span>Free Shipping</span>
               </div>
               <button className="button dark full" onClick={() => addInquiry(selectedProduct)} type="button">Add Inquiry</button>
             </div>
@@ -338,19 +417,27 @@ function App() {
           ) : (
             <>
               <div className="inquiry-list">
-                {inquiryItems.map((item) => (
-                  <div className="inquiry-row" key={item.code}>
-                    <strong>{item.code}</strong>
-                    <div className="qty">
-                      <button onClick={() => updateQuantity(item.code, -1)} type="button"><Minus size={14} /></button>
-                      <span>{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.code, 1)} type="button"><Plus size={14} /></button>
+                {inquiryItems.map((item) => {
+                  const product = productByCode.get(item.code);
+                  return (
+                    <div className="inquiry-row" key={item.code}>
+                      <div>
+                        <strong>{item.code}</strong>
+                        {product && <span>{product.displayCategory}</span>}
+                      </div>
+                      <div className="qty">
+                        <button onClick={() => updateQuantity(item.code, -1)} type="button"><Minus size={14} /></button>
+                        <span>{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.code, 1)} type="button"><Plus size={14} /></button>
+                      </div>
+                      <button className="remove" onClick={() => removeInquiry(item.code)} type="button">Remove</button>
                     </div>
-                    <button className="remove" onClick={() => removeInquiry(item.code)} type="button">Remove</button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              <a className="button dark full" href={inquiryHref}>Send Inquiry</a>
+              {copyStatus && <p className="copy-status">{copyStatus}</p>}
+              {manualCopyText && <textarea className="manual-copy" readOnly value={manualCopyText} />}
+              <button className="button dark full" onClick={copySelectedProducts} type="button">Copy Selected Products</button>
             </>
           )}
         </aside>
